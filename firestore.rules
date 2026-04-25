@@ -1,0 +1,79 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} { 
+      allow read, write: if false; 
+    }
+
+    // Primitive Helpers
+    function isValidId(id) { 
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+    
+    function isValidUser(data) {
+      return data.keys().hasAll(['budget', 'savingsGoal']) &&
+             data.budget is number && data.budget >= 0 &&
+             data.savingsGoal is number && data.savingsGoal >= 0 &&
+             data.updatedAt == request.time;
+    }
+
+    function isValidTransactionCreate(data) {
+      // Must exactly match size depending on recurringFrequency
+      let expectedKeys = data.isRecurring ? 
+        ['userId', 'type', 'category', 'amount', 'date', 'description', 'isRecurring', 'recurringFrequency', 'createdAt'] :
+        ['userId', 'type', 'category', 'amount', 'date', 'description', 'isRecurring', 'createdAt'];
+        
+      return data.keys().hasAll(expectedKeys) && data.keys().size() == expectedKeys.size() &&
+             data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 && data.userId == request.auth.uid &&
+             data.type is string && (data.type == 'income' || data.type == 'expense') &&
+             data.category is string && data.category.size() > 0 && data.category.size() <= 100 &&
+             data.amount is number && data.amount > 0 &&
+             data.date is number && 
+             data.description is string && data.description.size() <= 500 &&
+             data.isRecurring is bool &&
+             (!data.isRecurring || (data.recurringFrequency is string && data.recurringFrequency.size() > 0 && data.recurringFrequency.size() <= 20)) &&
+             data.createdAt == request.time;
+    }
+
+    function isValidTransactionUpdate(data) {
+      return data.type is string && (data.type == 'income' || data.type == 'expense') &&
+             data.category is string && data.category.size() > 0 && data.category.size() <= 100 &&
+             data.amount is number && data.amount > 0 &&
+             data.date is number && 
+             data.description is string && data.description.size() <= 500 &&
+             data.isRecurring is bool &&
+             (!data.isRecurring || (data.recurringFrequency is string && data.recurringFrequency.size() > 0 && data.recurringFrequency.size() <= 20));
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+      allow create: if isSignedIn() && isValidId(userId) && request.auth.uid == userId &&
+                    isValidUser(incoming()) && incoming().keys().size() == 3;
+      allow update: if isSignedIn() && isValidId(userId) && request.auth.uid == userId &&
+                    isValidUser(incoming()) && 
+                    incoming().diff(existing()).affectedKeys().hasOnly(['budget', 'savingsGoal', 'updatedAt']);
+    }
+
+    match /transactions/{transactionId} {
+      allow get: if isSignedIn() && isValidId(transactionId) && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isSignedIn() && isValidId(transactionId) && 
+                    isValidTransactionCreate(incoming()) && 
+                    exists(/databases/$(database)/documents/users/$(incoming().userId));
+                    
+      allow update: if isSignedIn() && isValidId(transactionId) && existing().userId == request.auth.uid &&
+                    incoming().userId == existing().userId &&
+                    incoming().createdAt == existing().createdAt &&
+                    isValidTransactionUpdate(incoming()) &&
+                    // For recurring transactions, recurringFrequency can be added
+                    incoming().diff(existing()).affectedKeys().hasOnly(['type', 'category', 'amount', 'date', 'description', 'isRecurring', 'recurringFrequency']);
+                    
+      allow delete: if isSignedIn() && isValidId(transactionId) && existing().userId == request.auth.uid;
+    }
+  }
+}

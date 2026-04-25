@@ -1,0 +1,42 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with budgets and settings",
+      "type": "object",
+      "properties": {
+        "budget": { "type": "number" },
+        "savingsGoal": { "type": "number" },
+        "updatedAt": { "type": "timestamp" }
+      },
+      "required": ["budget", "savingsGoal"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Financial transaction",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "type": { "type": "string" },
+        "category": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "number" },
+        "description": { "type": "string" },
+        "isRecurring": { "type": "boolean" },
+        "recurringFrequency": { "type": "string" },
+        "createdAt": { "type": "timestamp" }
+      },
+      "required": ["userId", "type", "category", "amount", "date", "description", "isRecurring", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "User" },
+      "description": "User preferences and goals"
+    },
+    "/transactions/{transactionId}": {
+      "schema": { "$ref": "Transaction" },
+      "description": "User transactions"
+    }
+  }
+}

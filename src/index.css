@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+.glow-emerald {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+}
+.glow-violet {
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.2);
+}
+.accent-gradient {
+  background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
+}
+.dot-grid {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+body {
+  @apply bg-[#080809] text-slate-200 font-sans;
+}
